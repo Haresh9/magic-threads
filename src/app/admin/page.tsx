@@ -39,6 +39,12 @@ export default function AdminPage() {
   const [itemImage, setItemImage] = useState('/images/navratri.png'); // Default preset
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [itemImages, setItemImages] = useState<string[]>([]);
+  const [itemVideo, setItemVideo] = useState<string>('');
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryPreviewUrls, setGalleryPreviewUrls] = useState<string[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [itemDescription, setItemDescription] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,6 +52,24 @@ export default function AdminPage() {
     if (file) {
       setImageFile(file);
       setImagePreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const filesArray = Array.from(files);
+      setGalleryFiles(filesArray);
+      const urls = filesArray.map(file => URL.createObjectURL(file));
+      setGalleryPreviewUrls(urls);
+    }
+  };
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setVideoFile(file);
+      setVideoPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -138,9 +162,15 @@ export default function AdminPage() {
     setItemDupatta(product.dupatta || '');
     setItemTag(product.tag || '');
     setItemImage(product.image);
+    setItemImages(product.images || []);
+    setItemVideo(product.video || '');
     setItemDescription(product.description);
     setImageFile(null);
     setImagePreviewUrl(null);
+    setGalleryFiles([]);
+    setGalleryPreviewUrls([]);
+    setVideoFile(null);
+    setVideoPreviewUrl(null);
     setFormMessage(null);
     setFormError(false);
 
@@ -165,9 +195,15 @@ export default function AdminPage() {
     setItemDupatta('');
     setItemTag('');
     setItemImage('/images/navratri.png');
+    setItemImages([]);
+    setItemVideo('');
     setItemDescription('');
     setImageFile(null);
     setImagePreviewUrl(null);
+    setGalleryFiles([]);
+    setGalleryPreviewUrls([]);
+    setVideoFile(null);
+    setVideoPreviewUrl(null);
     setFormMessage(null);
     setFormError(false);
   };
@@ -208,10 +244,29 @@ export default function AdminPage() {
     try {
       let imageUrl = itemImage;
       
-      // Upload file if selected
+      // 1. Upload main thumbnail file if selected
       if (imageFile) {
-        setFormMessage("Uploading product photo to storage...");
+        setFormMessage("Uploading primary product photo...");
         imageUrl = await uploadProductImage(imageFile);
+      }
+
+      // 2. Upload multiple gallery files if selected
+      let uploadedGalleryUrls: string[] = [...itemImages];
+      if (galleryFiles && galleryFiles.length > 0) {
+        setFormMessage(`Uploading ${galleryFiles.length} gallery images...`);
+        uploadedGalleryUrls = [];
+        for (let i = 0; i < galleryFiles.length; i++) {
+          const file = galleryFiles[i];
+          const url = await uploadProductImage(file);
+          uploadedGalleryUrls.push(url);
+        }
+      }
+
+      // 3. Upload video file if selected
+      let uploadedVideoUrl = itemVideo;
+      if (videoFile) {
+        setFormMessage("Uploading product video...");
+        uploadedVideoUrl = await uploadProductImage(videoFile);
       }
 
       const productPayload: Product = {
@@ -222,6 +277,8 @@ export default function AdminPage() {
         originalPrice: originalPriceNum,
         discount: discountPercent > 0 ? discountPercent : 0,
         image: imageUrl,
+        images: uploadedGalleryUrls.length > 0 ? uploadedGalleryUrls : undefined,
+        video: uploadedVideoUrl || undefined,
         description: itemDescription.trim() || "Handcrafted designer Chaniya Choli set.",
         fabric: itemFabric.trim(),
         workType: itemWorkType.trim(),
@@ -272,8 +329,14 @@ export default function AdminPage() {
       setItemTag('');
       setItemDescription('');
       setItemImage('/images/navratri.png');
+      setItemImages([]);
+      setItemVideo('');
       setImageFile(null);
       setImagePreviewUrl(null);
+      setGalleryFiles([]);
+      setGalleryPreviewUrls([]);
+      setVideoFile(null);
+      setVideoPreviewUrl(null);
 
       // Refresh listings
       fetchDashboardData();
@@ -594,6 +657,155 @@ export default function AdminPage() {
                     </select>
                   </div>
                 )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Upload Gallery Images (Inner View Card Images)</label>
+                <input
+                  type="file"
+                  className="form-input"
+                  accept="image/*"
+                  multiple
+                  onChange={handleGalleryChange}
+                  style={{ display: 'block', padding: '0.5rem' }}
+                />
+                {galleryPreviewUrls.length > 0 ? (
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Newly Selected Gallery Images ({galleryPreviewUrls.length})</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem', marginTop: '0.2rem' }}>
+                      {galleryPreviewUrls.map((url, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: '50px', height: '50px', borderRadius: '8px', border: '1px solid var(--color-border-gold)' }}>
+                          <img src={url} alt={`Gallery preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGalleryFiles(prev => prev.filter((_, i) => i !== idx));
+                              setGalleryPreviewUrls(prev => prev.filter((_, i) => i !== idx));
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: '-6px',
+                              right: '-6px',
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '50%',
+                              background: '#e74c3c',
+                              color: 'white',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }}
+                            title="Remove Selected Image"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {itemImages.length > 0 ? (
+                  <div style={{ marginTop: '0.8rem' }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem' }}>Saved Gallery Images ({itemImages.length})</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem', marginTop: '0.2rem' }}>
+                      {itemImages.map((url, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: '50px', height: '50px', borderRadius: '8px', border: '1px solid var(--color-border-gold)' }}>
+                          <img src={url} alt={`Current gallery ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                          <button
+                            type="button"
+                            onClick={() => setItemImages(prev => prev.filter((_, i) => i !== idx))}
+                            style={{
+                              position: 'absolute',
+                              top: '-6px',
+                              right: '-6px',
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '50%',
+                              background: '#e74c3c',
+                              color: 'white',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }}
+                            title="Delete Saved Image"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Upload Product Video (Optional Showcase)</label>
+                <input
+                  type="file"
+                  className="form-input"
+                  accept="video/*"
+                  onChange={handleVideoChange}
+                  style={{ display: 'block', padding: '0.5rem' }}
+                />
+                {videoPreviewUrl ? (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 0 }}>New Showcase Video Preview</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVideoFile(null);
+                          setVideoPreviewUrl(null);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#e74c3c',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        Remove Selected Video
+                      </button>
+                    </div>
+                    <video src={videoPreviewUrl} controls style={{ width: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--color-border-gold)' }} />
+                  </div>
+                ) : itemVideo ? (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 0 }}>Saved Product Video</label>
+                      <button
+                        type="button"
+                        onClick={() => setItemVideo('')}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#e74c3c',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        Remove Video
+                      </button>
+                    </div>
+                    <video src={itemVideo} controls style={{ width: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--color-border-gold)' }} />
+                  </div>
+                ) : null}
               </div>
 
               <div className="form-group">
