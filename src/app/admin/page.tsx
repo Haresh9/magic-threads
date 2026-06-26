@@ -150,6 +150,7 @@ export default function AdminPage() {
       const { data: products, error: pError } = await supabase
         .from('products')
         .select('*')
+        .order('created_at', { ascending: false })
         .async(); // Uses helper in mock/real client
       
       if (!pError && products) {
@@ -408,7 +409,8 @@ export default function AdminPage() {
         highlights: highlightsInput.trim() ? highlightsInput.split('\n').map(h => h.trim()).filter(Boolean) : undefined,
         careInstructions: careInstructionsInput.trim() ? careInstructionsInput.split('\n').map(c => c.trim()).filter(Boolean) : undefined,
         note: itemNote.trim() || undefined,
-        styleStatement: itemStyleStatement.trim() || undefined
+        styleStatement: itemStyleStatement.trim() || undefined,
+        created_at: new Date().toISOString()
       };
 
       if (isEditMode) {
@@ -516,6 +518,7 @@ export default function AdminPage() {
       const { data: refreshedProducts } = await supabase
         .from('products')
         .select('*')
+        .order('created_at', { ascending: false })
         .async();
       
       if (refreshedProducts) {

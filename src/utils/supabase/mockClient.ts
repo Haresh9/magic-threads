@@ -98,7 +98,10 @@ export const mockSupabase = {
 
     return {
       select: (fields: string = '*') => {
-        return {
+        const queryBuilder: any = {
+          _sortField: null,
+          _sortAscending: true,
+
           single: async () => {
             if (table === 'profiles') {
               if (!activeSession) return { data: null, error: { message: 'No active session' } };
@@ -131,11 +134,26 @@ export const mockSupabase = {
                     dbProducts.find(p => p.id === item.product_id)
                   ).filter(Boolean) as Product[];
 
+                  // Apply Sorting
+                  if (queryBuilder._sortField === 'created_at' && table === 'products') {
+                    matchedProducts.sort((a, b) => {
+                      const timeA = new Date(a.created_at || 0).getTime();
+                      const timeB = new Date(b.created_at || 0).getTime();
+                      return queryBuilder._sortAscending ? timeA - timeB : timeB - timeA;
+                    });
+                  }
+
                   return { data: matchedProducts, error: null };
                 }
                 return { data: [], error: null };
               }
             };
+          },
+
+          order: (field: string, options?: { ascending?: boolean }) => {
+            queryBuilder._sortField = field;
+            queryBuilder._sortAscending = options?.ascending !== false;
+            return queryBuilder;
           },
 
           async: async () => {
@@ -150,11 +168,22 @@ export const mockSupabase = {
                   changed = true;
                 }
               });
-              if (changed) {
-                setLocalStorage('mock_db_products', mergedProducts);
-                return { data: mergedProducts, error: null };
+
+              let targetProducts = changed ? mergedProducts : dbProducts;
+
+              // Apply Sorting
+              if (queryBuilder._sortField === 'created_at') {
+                targetProducts = [...targetProducts].sort((a, b) => {
+                  const timeA = new Date(a.created_at || 0).getTime();
+                  const timeB = new Date(b.created_at || 0).getTime();
+                  return queryBuilder._sortAscending ? timeA - timeB : timeB - timeA;
+                });
               }
-              return { data: dbProducts, error: null };
+
+              if (changed) {
+                setLocalStorage('mock_db_products', targetProducts);
+              }
+              return { data: targetProducts, error: null };
             }
             if (table === 'profiles') {
               const users = getLocalStorage<UserSession[]>('mock_db_users', []);
@@ -163,6 +192,7 @@ export const mockSupabase = {
             return { data: [], error: null };
           }
         };
+        return queryBuilder;
       },
 
       // Insert Row Simulator

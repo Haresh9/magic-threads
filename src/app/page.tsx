@@ -56,7 +56,11 @@ export default function CatalogPage() {
       setLoading(true);
       try {
         // 1. Fetch products from database
-        const { data: dbProducts } = await supabase.from('products').select('*').async();
+        const { data: dbProducts } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .async();
         if (dbProducts && dbProducts.length > 0) {
           setProductsList(dbProducts);
         } else {

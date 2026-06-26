@@ -44,6 +44,7 @@ export interface Product {
   careInstructions?: string[];
   note?: string;
   styleStatement?: string;
+  created_at?: string;
 }
 
 export const products: Product[] = [
